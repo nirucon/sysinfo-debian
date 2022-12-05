@@ -1,0 +1,60 @@
+#!/bin/bash
+# sysinfo for debian, put in /usr/local/bin/
+# example: for use in .bashrc
+# By Nicklas Rudolfsson
+# dep pkg: wmctrl
+
+# sys
+KERNEL=$(uname -v | sed 's/#1 SMP PREEMPT_DYNAMIC //')
+IP=$(hostname -I)
+HOSTNAME=$(hostname)
+OSNAME=$(cat /etc/os-release | awk -F '=' '/ID/ {print $2}')
+CODENAME=$(cat /etc/os-release | awk -F '=' '/VERSION_CODENAME/ {print $2}')
+UPTIME=$(awk '{printf("%d:%02d:%02d:%02d",($1/60/60/24),($1/60/60%24),($1/60%60),($1%60))}' /proc/uptime)
+MODEL=$(cat /sys/devices/virtual/dmi/id/product_{name,version} | awk '!(NR%2){print$1,p}{p=$0}')
+CPU=$(awk < /proc/cpuinfo '/model name/{gsub(/[(TMR)]/,"");print $4,$5,$6}' | head -1)
+#GPU=$(nvidia-smi --query-gpu=gpu_name --format=csv|sed -n 2p)
+SHELL=$(echo "$SHELL" | awk -F/ '{for ( i=1; i <= NF; i++) sub(".", substr(toupper($i),1,1) , $i); print $NF}')
+BIRTH=$(ls -alct /|sed '$!d'|awk '{print $7, $6, $8}')
+
+# wm / de
+DE=$(wmctrl -m | awk 'NR==1 {print $2}')
+RESOLUTION=$(xdpyinfo | awk '/dimensions:/ {printf $2}')
+
+# gtk
+if [ -f ~/.gtkrc-2.0 ]; then
+    GtkTheme=$(awk < ~/.gtkrc-2.0 -F'"' '/gtk-theme-name/{print $2}')
+    GtkIcon=$(awk < ~/.gtkrc-2.0 -F'"' '/gtk-icon-theme-name/{print $2}' )
+    GtkFont=$(awk < ~/.gtkrc-2.0 -F'"' '/gtk-font-name/{print $2}')
+elif [ -f ~/.config/gtk-3.0/settings.ini  ]; then
+    GtkTheme=$(awk < ~/.config/gtk-3.0/settings.ini -F'=' '/gtk-theme-name/{print $2}')
+    GtkIcon=$(awk < ~/.config/gtk-3.0/settings.ini -F'=' '/gtk-icon-theme-name/{print $2}' )
+    GtkFont=$(awk < ~/.config/gtk-3.0/settings.ini -F'=' '/gtk-font-name/{print $2}')
+fi
+
+# pkg
+PKGUPDATE=$(LANG=C apt-get upgrade -s |grep -P '^\d+ upgraded'|cut -d" " -f1)
+PKGINST=$(dpkg-query -f '${binary:Package}\n' -W | wc -l)
+
+
+# view output
+ echo  ""
+ echo -e "\e[33m   [  sysinfo  ]"
+ echo -e "\e[94m   |- \e[39m$USER@$HOSTNAME ($OSNAME / $CODENAME)"
+ echo -e "\e[94m   |- \e[39m$KERNEL"
+ echo -e "\e[94m   |- \e[39m$IP"
+ echo -e "\e[94m   |- \e[39m$UPTIME (up) / $BIRTH (birth)"
+ echo -e "\e[94m   |- \e[39m$SHELL"
+ echo -e "\e[94m   |-\e[39m$MODEL"
+ echo -e "\e[94m   |- \e[39m$CPU"
+ #echo -e "\e[94m   |- \e[39m$GPU"
+ echo -e "\e[33m   [  wm / de  ]"
+ echo -e "\e[94m   |- \e[39m$DE"
+ echo -e "\e[94m   |- \e[39m$RESOLUTION"
+ echo -e "\e[94m   |- \e[39m$GtkTheme / $GtkIcon"
+ #echo -e "\e[94m   |- \e[39m$GtkIcon"
+ #echo -e "\e[94m  |- \e[39m$GtkFont"
+ #echo -e "\e[94m  |- \e[39m$BIRTH"
+ echo -e "\e[33m   [  pkg  ]"
+ echo -e "\e[94m   |- \e[39m$PKGINST (inst) / $PKGUPDATE (updates)"
+ echo  ""
